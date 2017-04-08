@@ -57,6 +57,34 @@ module.exports.getRepoLanguages = async (visibility, token) => {
 };
 
 /**
+ * Gets a Github user's repository programming language distribution
+ * @param  {String} username    Username in which the Repos will be retrieved from
+ * @return {Promise}            Resolves if API request performed successfully
+ *                              Rejects if parameters are invalid, or error occurs with API request
+ */
+module.exports.getRepoLanguagesByUsername = async (username) => {
+  // First get the User's repositories
+  const repoResponses = await getUserReposByUsername(username);
+
+  const urls = _.map(repoResponses, 'languages_url');
+  const promises = _.map(urls, _.curry(createAPIRequestPromiseNoToken));
+
+  const langResponses = await Promise.all(promises);
+  const results = _.map(langResponses, 'body');
+
+  const totals = {};
+  _.each(results, (obj) => {
+      _.each(obj, (val, key) => {
+          if (!totals[key]) totals[key] = 0;
+          totals[key] += obj[key];
+      });
+  });
+
+
+  return totals;
+};
+
+/**
  * Gets a Github user's commit programming language distribution
  * @param  {String} visibility  Type of repositories to find (can be all, public, or private)
  * @param  {Object} token       Github personal access token
@@ -215,6 +243,32 @@ async function getUserRepos(visibility, token) {
 }
 
 /**
+ * Gets a list of Github user's repositories from the Github API
+ * @param  {String} username    Github username
+ * @return {Promise}            Resolves if repo URLs are obtained
+ *                              Rejects if an error occurs obtaining URLs
+ */
+async function getUserReposByUsername(username) {
+  // First validate the user token input
+  const validation = {
+      type: 'string'
+  };
+
+  const result = inspector.validate(validation, username);
+  if (!result.valid) throw Error(result.format());
+
+  // Form options for API request
+  const url = API_BASE_URL + `/users/${ username }/repos`;
+  const options = _.defaultsDeep({
+      uri: url,
+  }, baseOpts);
+
+  const response = await request(options);
+
+return response.body;
+}
+
+/**
  * Creates and returns a promise to resolve to all of the commits for a Github repo
  * @param  {String} username    Github username
  * @param  {String} token       Github personal access token
@@ -271,6 +325,16 @@ function createAPIRequestPromise(token, qs, url) {
             options.qs[key] = val;
         }
     }
+
+    // Perform API request and handle result appropriately
+    return request(options);
+}
+
+function createAPIRequestPromiseNoToken(url) {
+    // Form options for API request
+    const options = _.defaultsDeep({
+        uri: url
+    }, baseOpts);
 
     // Perform API request and handle result appropriately
     return request(options);
