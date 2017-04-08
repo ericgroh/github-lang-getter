@@ -13,7 +13,7 @@ const langGetter = require('../src/index');
 // }).catch((err) => {
 //     console.log(err);
 // });
-langGetter.getRepoLanguagesByUsername(`ericgroh`).then((result) => {
+langGetter.getRepoLanguages(process.env.username).then((result) => {
   console.log(result);
 }).catch((err) => {
   console.log(err);
